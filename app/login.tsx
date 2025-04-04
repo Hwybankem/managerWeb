@@ -1,70 +1,91 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useAuth } from "@/context/AuthContext";
-import { Link, router, useRouter } from "expo-router";
+import { Link, useRouter } from "expo-router";
+import { User } from "firebase/auth";
 
 export default function Login() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const { login, user, role } = useAuth();
+  const [checkRoleError, setCheckRoleError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { login, user, checkRole, logout} = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (user) {
-      if (role === "manager") {
-        router.replace("/"); // Nếu là Manager, chuyển về trang chính
-      } else {
-        router.replace("/register"); // Nếu không phải Manager, chuyển hướng khác
-      }
-    }
-  }, [user, role]);
-    
-  if (user) {
-    router.replace("/");
-    return null;
-  }
+  // useEffect(() => {
+  //   if (user) {
+  //     router.replace("/");
+  //   }
+  // }, [user]);
 
-  
   const handleLogin = async () => {
-    setError(null);
-
-    try {
-      await login(email, password);
-      router.replace("/");
-    } catch (err: any) {
-      let errorMessage = "Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.";
-      if (err.code === "auth/invalid-credential") {
-        errorMessage = "Email hoặc mật khẩu không đúng. Vui lòng kiểm tra lại.";
-      } else if (err.code === "auth/user-not-found") {
-        errorMessage = "Tài khoản không tồn tại. Vui lòng đăng ký.";
-      } else if (err.code === "auth/too-many-requests") {
-        errorMessage = "Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau.";
-      } else if (err.code === "auth/invalid-email") {
-        errorMessage = "Email không hợp lệ. Vui lòng nhập email đúng định dạng.";
-      }
-      setError(errorMessage);
+    if (!email || !password) {
+      setError("Vui lòng nhập đầy đủ email và mật khẩu");
+      return;
     }
+  
+    setIsLoading(true);
+    setError(null);
+    setCheckRoleError(null);
+  
+    try {
+      console.log("Bắt đầu đăng nhập...");
+      const currentUser = await login(email, password);
+  
+      if (!currentUser.email) {
+        throw new Error("Không tìm thấy email người dùng");
+      }
+  
+      console.log("Đăng nhập thành công:", currentUser.email);
+  
+      // Kiểm tra role ngay sau khi đăng nhập thành công
+      const hasRequiredRole = await checkRole("admin", currentUser.uid);
 
-
-     // Nếu đang kiểm tra quyền truy cập
-    if (user && role === null) {
-      return (
-        <View style={styles.errorContainer}>
-          <Text>Đang kiểm tra quyền truy cập...</Text>
-        </View>
-      );
+      console.log("Kết quả kiểm tra role:", hasRequiredRole);
+  
+      if (hasRequiredRole) {
+        console.log("Đăng nhập thành công với quyền admin");
+        router.replace("/");
+      } else {
+        console.log("Không có quyền admin, đăng xuất sau 2 giây...");
+        setCheckRoleError("Bạn không có quyền truy cập vào ứng dụng. Vui lòng liên hệ quản trị viên.");
+        
+        setTimeout(async () => {
+          await logout();
+        }, 2000);
+      }
+    } catch (err: any) {
+      console.log("Lỗi đăng nhập:", err.message);
+      setError(err.message);
+    } finally {
+      console.log("Đã kết thúc quá trình xử lý login");
+      setIsLoading(false); // Quan trọng: đảm bảo trạng thái này được cập nhật
     }
   };
-
+  
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Đăng Nhập</Text>
 
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
+      {checkRoleError && (
+        <View style={[styles.errorContainer, styles.warningContainer]}>
+          <Text style={[styles.errorText, styles.warningText]}>{checkRoleError}</Text>
+          <Text style={styles.warningSubText}>Nếu bạn là quản trị viên, vui lòng kiểm tra lại thông tin đăng nhập.</Text>
+          <Text style={styles.warningSubText}>Bạn sẽ bị đăng xuất sau 2 giây...</Text>
+        </View>
+      )}
+
       <View style={styles.form}>
         <Text style={styles.label}>Email</Text>
         <TextInput
-          style={[styles.input]}
+          style={[styles.input, error && styles.inputError]}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
@@ -83,8 +104,14 @@ export default function Login() {
           placeholderTextColor="#999"
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Đăng Nhập</Text>
+        <TouchableOpacity 
+          style={[styles.button, isLoading && styles.buttonDisabled]} 
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          <Text style={styles.buttonText}>
+            {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.registerLink}>
@@ -175,5 +202,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#007bff",
     textDecorationLine: "underline",
+  },
+  warningContainer: {
+    backgroundColor: "#fff3e0",
+    borderColor: "#ff9800",
+  },
+  warningText: {
+    color: "#f57c00",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  warningSubText: {
+    color: "#f57c00",
+    fontSize: 14,
+    textAlign: "center",
+    opacity: 0.8,
+  },
+  buttonDisabled: {
+    backgroundColor: "#cccccc",
   },
 });

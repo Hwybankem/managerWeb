@@ -1,10 +1,10 @@
-import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import React, { useEffect } from "react";
+import { View, Text, TouchableOpacity, Platform } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import Login from "./login"
-import InitializeDatabase from "../context/InitializeDatabase";
-
+import HomeScreen from "./navigator";
+import ProductPage from "./products/product"
 export default function Home() {
   const { user, logout } = useAuth();
 
@@ -20,21 +20,7 @@ export default function Home() {
   return (
     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
       {user ? (
-        <InitializeDatabase />
-        // <>
-        //   <Text>Chào mừng, {user.email}!</Text>
-        //   <TouchableOpacity
-        //     style={{
-        //       marginTop: 20,
-        //       padding: 10,
-        //       backgroundColor: "#ff4444",
-        //       borderRadius: 5,
-        //     }}
-        //     onPress={handleLogout}
-        //   >
-        //     <Text style={{ color: "#fff", fontWeight: "bold" }}>Đăng Xuất</Text>
-        //   </TouchableOpacity>
-        // </>
+        <HomeScreen />
       ) : (
         <Login />
       )}

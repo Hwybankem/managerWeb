@@ -1,14 +1,18 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { useAuth } from "@/context/AuthContext";
-import { Link, router } from "expo-router";
+import { Link, useRouter } from "expo-router";
 
 export default function Register() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [fullName, setFullName] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const { register, user } = useAuth();
+  const router = useRouter();
 
   if (user) {
     router.replace("/");
@@ -29,7 +33,14 @@ export default function Register() {
     }
 
     try {
-      await register(email, password);
+      // Gọi hàm register từ AuthContext, truyền thêm thông tin người dùng
+      await register(
+        email,
+        password,
+        fullName,
+        phone,
+        address,
+      );
       router.replace("/");
     } catch (err: any) {
       let errorMessage = "Đăng ký thất bại. Vui lòng thử lại.";
@@ -83,6 +94,34 @@ export default function Register() {
           onChangeText={setConfirmPassword}
           secureTextEntry
           placeholder="Xác nhận mật khẩu"
+          placeholderTextColor="#999"
+        />
+
+        <Text style={styles.label}>Họ và tên</Text>
+        <TextInput
+          style={[styles.input, error && styles.inputError]}
+          value={fullName}
+          onChangeText={setFullName}
+          placeholder="Nhập họ và tên của bạn"
+          placeholderTextColor="#999"
+        />
+
+        <Text style={styles.label}>Số điện thoại</Text>
+        <TextInput
+          style={[styles.input, error && styles.inputError]}
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+          placeholder="Nhập số điện thoại của bạn"
+          placeholderTextColor="#999"
+        />
+
+        <Text style={styles.label}>Địa Chỉ</Text>
+        <TextInput
+          style={[styles.input, error && styles.inputError]}
+          value={address}
+          onChangeText={setAddress}
+          placeholder="Nhập Địa Chỉ"
           placeholderTextColor="#999"
         />
 
