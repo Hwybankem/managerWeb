@@ -1,41 +1,153 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, SafeAreaView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const router = useRouter();
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text style={{ fontSize: 24, marginBottom: 20 }}>Chọn trang:</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a2b49" />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Quản lý hệ thống</Text>
+      </View>
       
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push('/products/product')}
-      >
-        <Text style={styles.buttonText}>Đi đến Trang 1</Text>
-      </TouchableOpacity>
+      <View style={styles.content}>
+        <Text style={styles.welcomeText}>Chào mừng đến với hệ thống quản lý</Text>
+        <Text style={styles.subText}>Vui lòng chọn mục bạn muốn truy cập</Text>
+        
+        <View style={styles.menuContainer}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/products/product')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: '#3498db' }]}>
+              <Ionicons name="cube-outline" size={32} color="white" />
+            </View>
+            <View style={styles.menuTextContainer}>
+              <Text style={styles.menuTitle}>Sản phẩm</Text>
+              <Text style={styles.menuDescription}>Quản lý danh sách sản phẩm</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#95a5a6" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/vendors/vendor')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: '#2ecc71' }]}>
+              <Ionicons name="business-outline" size={32} color="white" />
+            </View>
+            <View style={styles.menuTextContainer}>
+              <Text style={styles.menuTitle}>Đại lý</Text>
+              <Text style={styles.menuDescription}>Quản lý danh sách đại lý</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#95a5a6" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => router.push('/users/user')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: '#e74c3c' }]}>
+              <Ionicons name="people-outline" size={32} color="white" />
+            </View>
+            <View style={styles.menuTextContainer}>
+              <Text style={styles.menuTitle}>Người dùng</Text>
+              <Text style={styles.menuDescription}>Quản lý danh sách người dùng</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#95a5a6" />
+          </TouchableOpacity>
+        </View>
+      </View>
       
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push('/register')}
-      >
-        <Text style={styles.buttonText}>Đi đến Trang 2</Text>
-      </TouchableOpacity>
-    </View>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>© 2023 Hệ thống quản lý</Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    backgroundColor: '#007bff',
-    padding: 15,
-    borderRadius: 10,
-    marginVertical: 10,
-    width: 200,
-    alignItems: 'center',
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
   },
-  buttonText: {
+  header: {
+    backgroundColor: '#1a2b49',
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: 'white',
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  welcomeText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1a2b49',
+    marginBottom: 8,
+  },
+  subText: {
     fontSize: 16,
+    color: '#7f8c8d',
+    marginBottom: 30,
+  },
+  menuContainer: {
+    marginTop: 10,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  menuTextContainer: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a2b49',
+    marginBottom: 4,
+  },
+  menuDescription: {
+    fontSize: 14,
+    color: '#7f8c8d',
+  },
+  footer: {
+    padding: 20,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e4e7',
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#7f8c8d',
   },
 });

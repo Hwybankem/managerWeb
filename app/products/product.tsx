@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, Image, SafeAreaView, Platform, ScrollView, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { useFirestore } from '../../context/storageFirebase';
+import BackButton from '../../components/common/UI/backButton';
+import AddButton from '../../components/common/UI/addButton';
+import removeAccents from '@/components/utils/stringUtils'; 
 
 interface Category {
     id: string;
@@ -23,14 +26,6 @@ interface Product {
     createdAt: Date;
     updatedAt: Date;
 }
-
-// Hàm chuyển đổi có dấu thành không dấu
-const removeAccents = (str: string): string => {
-    return str.normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd')
-        .replace(/Đ/g, 'D');
-};
 
 export default function App() {
     const { getDocuments } = useFirestore();
@@ -257,15 +252,12 @@ export default function App() {
         <SafeAreaView style={styles.container}>
             <View style={styles.mainContent}>
                 <View style={styles.header}>
+                    <BackButton path={'/navigator'} />
                     <Text style={styles.title}>Danh sách sản phẩm</Text>
-                    <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => router.push('/products/addProducts')}
-                    >
-                        <Text style={styles.addButtonText}>Thêm sản phẩm</Text>
-                    </TouchableOpacity>
+                    <AddButton path={'/products/addProducts'} text={'sản phẩm'} />
                 </View>
 
+                {/* search sản phẩm */}
                 <View style={styles.searchContainer}>
                     <TextInput
                         style={styles.searchInput}
@@ -386,27 +378,7 @@ const styles = StyleSheet.create({
         color: '#2c3e50',
         letterSpacing: 0.5,
     },
-    addButton: {
-        backgroundColor: '#2ecc71',
-        paddingVertical: 12,
-        paddingHorizontal: 25,
-        borderRadius: 25,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
-        elevation: 5,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    addButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
+
     contentContainer: {
         flex: 1,
         flexDirection: 'row',

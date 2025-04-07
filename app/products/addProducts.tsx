@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     ScrollView,
     Image,
-    Dimensions,
     Modal,
     Alert,
     Platform,
@@ -15,6 +14,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useFirestore } from '../../context/storageFirebase';
 import { uploadToImgBB } from '../../services/imgbbService';
+import BackButton from '../../components/common/UI/backButton';
+
 
 interface Category {
     id: string;
@@ -47,14 +48,12 @@ export default function CRUDProducts() {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-    const [status, setStatus] = useState<'active' | 'inactive'>('active');
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
     const [selectedParentCategory, setSelectedParentCategory] = useState<string | null>(null);
     const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
     const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
-    const [showParentCategoryList, setShowParentCategoryList] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
@@ -142,7 +141,7 @@ export default function CRUDProducts() {
                 stock: parseInt(stock),
                 images: imgbbUrls,
                 categories: selectedCategories,
-                status: status,
+                status: 'active',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -173,7 +172,6 @@ export default function CRUDProducts() {
         setStock('');
         setImages([]);
         setSelectedCategories([]);
-        setStatus('active');
     };
 
     const findCategoryById = (categories: Category[], id: string): Category | null => {
@@ -386,319 +384,264 @@ export default function CRUDProducts() {
     };
 
     return (
-        <ScrollView style={[styles.container, { alignItems: undefined }]} contentContainerStyle={{ alignItems: 'center' }}>
-            <Text style={styles.title}>Quản lý Sản phẩm</Text>
+        <ScrollView style={styles.container}>
+            <View style={styles.header}>
+                <BackButton path='/products/product' />
+                <Text style={styles.headerTitle}>Thêm sản phẩm mới</Text>
+            </View>
 
             <View style={styles.formContainer}>
-                <Text style={styles.label}>Product Name:</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter product name"
-                    value={productName}
-                    onChangeText={setProductName}
-                />
+                <View style={styles.formSection}>
+                    <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+                    
+                    <Text style={styles.label}>Tên sản phẩm <Text style={styles.required}>*</Text></Text>
+                    <TextInput
+                        style={styles.input}
+                        value={productName}
+                        onChangeText={setProductName}
+                        placeholder="Nhập tên sản phẩm"
+                    />
 
-                <Text style={styles.label}>Description:</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter product description"
-                    multiline
-                    numberOfLines={4}
-                    value={description}
-                    onChangeText={setDescription}
-                />
+                    <Text style={styles.label}>Giá <Text style={styles.required}>*</Text></Text>
+                    <TextInput
+                        style={styles.input}
+                        value={price}
+                        onChangeText={setPrice}
+                        placeholder="Nhập giá sản phẩm"
+                        keyboardType="numeric"
+                    />
 
-                <Text style={styles.label}>Categories:</Text>
-                <TouchableOpacity 
-                    style={styles.categoryButton}
-                    onPress={() => setShowCategoryModal(true)}
-                >
-                    <Text style={styles.categoryButtonText}>
-                        {selectedCategories.length > 0 
-                            ? getSelectedCategoryNames() 
-                            : 'Select Categories'}
-                    </Text>
-                </TouchableOpacity>
+                    <Text style={styles.label}>Số lượng trong kho <Text style={styles.required}>*</Text></Text>
+                    <TextInput
+                        style={styles.input}
+                        value={stock}
+                        onChangeText={setStock}
+                        placeholder="Nhập số lượng"
+                        keyboardType="numeric"
+                    />
 
-                <Text style={styles.label}>Price:</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter product price"
-                    keyboardType="numeric"
-                    value={price}
-                    onChangeText={setPrice}
-                />
+                    <Text style={styles.label}>Trạng thái</Text>
+                </View>
 
-                <Text style={styles.label}>Stock Quantity:</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter stock quantity"
-                    keyboardType="number-pad"
-                    value={stock}
-                    onChangeText={setStock}
-                />
+                <View style={styles.formSection}>
+                    <Text style={styles.sectionTitle}>Hình ảnh sản phẩm</Text>
+                    <View style={styles.imagesContainer}>
+                        {images.map((uri, index) => (
+                            <View key={index} style={styles.imageWrapper}>
+                                <TouchableOpacity onPress={() => openImageModal(uri, index)}>
+                                    <Image source={getImageSource(uri)} style={styles.imagePreview} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.removeImageButton}
+                                    onPress={() => removeImage(index)}
+                                >
+                                    <Text style={styles.removeImageButtonText}>×</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                        <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
+                            <Text style={styles.addImageButtonText}>+</Text>
+                            <Text style={styles.addImageButtonSubtext}>Thêm ảnh</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
-                <Text style={styles.label}>Status:</Text>
-                <View style={styles.statusContainer}>
-                    <TouchableOpacity 
-                        style={[
-                            styles.statusButton,
-                            status === 'active' && styles.statusButtonActive
-                        ]}
-                        onPress={() => setStatus('active')}
+                <View style={styles.formSection}>
+                    <Text style={styles.sectionTitle}>Danh mục</Text>
+                    <TouchableOpacity
+                        style={styles.categoryButton}
+                        onPress={() => setShowCategoryModal(true)}
                     >
-                        <Text style={[
-                            styles.statusButtonText,
-                            status === 'active' && styles.statusButtonTextActive
-                        ]}>
-                            Active
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={[
-                            styles.statusButton,
-                            status === 'inactive' && styles.statusButtonInactive
-                        ]}
-                        onPress={() => setStatus('inactive')}
-                    >
-                        <Text style={[
-                            styles.statusButtonText,
-                            status === 'inactive' && styles.statusButtonTextInactive
-                        ]}>
-                            Inactive
+                        <Text style={styles.categoryButtonText}>
+                            {selectedCategories.length > 0
+                                ? getSelectedCategoryNames()
+                                : 'Chọn danh mục sản phẩm'}
                         </Text>
                     </TouchableOpacity>
                 </View>
 
-                <Text style={styles.label}>Product Images:</Text>
-                <TouchableOpacity style={styles.uploadButton} onPress={pickImage}> 
-                    <Text style={styles.uploadButtonText}>Upload Product Image</Text>   
-                </TouchableOpacity>
-                
-                <View style={styles.imageGrid}>
-                    {images.map((uri, index) => (
-                        <View key={index} style={styles.imageContainer}>
-                            <Image 
-                                source={getImageSource(uri)} 
-                                style={styles.imagePreview}
-                            />
-                            <TouchableOpacity 
-                                style={styles.imageOverlay}
-                                onPress={() => openImageModal(uri, index)}
-                            />
-                            <TouchableOpacity 
-                                style={styles.removeButton}
-                                onPress={() => removeImage(index)}
-                            >
-                                <Text style={styles.removeButtonText}>×</Text>
-                            </TouchableOpacity>
-                        </View>
-                    ))}
+                <View style={styles.formSection}>
+                    <Text style={styles.sectionTitle}>Mô tả</Text>
+                    <TextInput
+                        style={[styles.input, styles.textArea]}
+                        value={description}
+                        onChangeText={setDescription}
+                        placeholder="Nhập mô tả sản phẩm"
+                        multiline
+                        numberOfLines={4}
+                        textAlignVertical="top"
+                    />
                 </View>
 
-                <TouchableOpacity 
-                    style={[styles.submitButton, (isSubmitting || firestoreLoading) && styles.submitButtonDisabled]}
+                <TouchableOpacity
+                    style={[styles.submitButton, isSubmitting && styles.disabledButton]}
                     onPress={handleSubmit}
-                    disabled={isSubmitting || firestoreLoading}
+                    disabled={isSubmitting}
                 >
                     <Text style={styles.submitButtonText}>
-                        {isSubmitting || firestoreLoading ? 'Đang xử lý...' : 'Thêm mới'}
+                        {isSubmitting ? 'Đang xử lý...' : 'Thêm sản phẩm'}
                     </Text>
                 </TouchableOpacity>
             </View>
 
+            {/* Modal hiển thị hình ảnh */}
             <Modal
-                visible={showCategoryModal}
-                transparent={true}
-                onRequestClose={() => setShowCategoryModal(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.categoryModalContent}>
-                        <View style={styles.categoryModalHeader}>
-                            <Text style={styles.categoryModalTitle}>Chọn Danh mục</Text>
-                            <TouchableOpacity 
-                                onPress={() => setShowCategoryModal(false)}
-                                style={styles.modalCloseButton}
-                            >
-                                <Text style={styles.modalCloseButtonText}>×</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <ScrollView style={styles.categoryList}>
-                            {categories.map(category => 
-                                renderCategoryItem(category)
-                            )}
-                        </ScrollView>
-                        <TouchableOpacity 
-                            style={styles.addCategoryButton}
-                            onPress={() => setShowAddCategoryModal(true)}
-                        >
-                            <Text style={styles.addCategoryButtonText}>+ Thêm Danh mục</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
-            <Modal
-                visible={selectedImage !== null}
-                transparent={true}
+                visible={!!selectedImage}
+                transparent
+                animationType="fade"
                 onRequestClose={() => setSelectedImage(null)}
             >
                 <View style={styles.modalContainer}>
-                    <TouchableOpacity 
-                        style={styles.navigationButton}
-                        onPress={() => navigateImage('left')}
-                    >
-                        <Text style={styles.navigationButtonText}>❮</Text>
-                    </TouchableOpacity>
-
-                    <Image 
-                        source={{ uri: selectedImage || '' }} 
-                        style={styles.modalImage}
-                        resizeMode="contain"
-                    />
-
-                    <TouchableOpacity 
-                        style={[styles.navigationButton, styles.navigationButtonRight]}
-                        onPress={() => navigateImage('right')}
-                    >
-                        <Text style={styles.navigationButtonText}>❯</Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.modalBottomContainer}>
-                        <Text style={styles.imageCounter}>
-                            {currentImageIndex + 1} / {images.length}
-                        </Text>
-                        <TouchableOpacity 
-                            style={styles.exitButton}
+                    <View style={styles.imageModalContent}>
+                        <TouchableOpacity
+                            style={styles.closeButton}
                             onPress={() => setSelectedImage(null)}
                         >
-                            <Text style={styles.exitButtonText}>Thoát</Text>
+                            <Text style={styles.closeButtonText}>×</Text>
+                        </TouchableOpacity>
+                        {selectedImage && (
+                            <Image
+                                source={getImageSource(selectedImage)}
+                                style={styles.modalImage}
+                                resizeMode="contain"
+                            />
+                        )}
+                        {images.length > 1 && (
+                            <View style={styles.imageNavigationButtons}>
+                                <TouchableOpacity
+                                    style={styles.navButton}
+                                    onPress={() => navigateImage('left')}
+                                >
+                                    <Text style={styles.navButtonText}>←</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.navButton}
+                                    onPress={() => navigateImage('right')}
+                                >
+                                    <Text style={styles.navButtonText}>→</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal quản lý danh mục */}
+            <Modal
+                visible={showCategoryModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowCategoryModal(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Quản lý danh mục</Text>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setShowCategoryModal(false)}
+                            >
+                                <Text style={styles.closeButtonText}>×</Text>
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <TouchableOpacity
+                            style={styles.addCategoryButton}
+                            onPress={() => {
+                                setSelectedParentCategory(null);
+                                setShowAddCategoryModal(true);
+                            }}
+                        >
+                            <Text style={styles.addCategoryButtonText}>+ Thêm danh mục gốc</Text>
+                        </TouchableOpacity>
+                        
+                        <ScrollView style={styles.categoryList}>
+                            {categories.map(category => renderCategoryItem(category))}
+                        </ScrollView>
+                        
+                        <TouchableOpacity
+                            style={styles.saveCategoriesButton}
+                            onPress={() => setShowCategoryModal(false)}
+                        >
+                            <Text style={styles.saveCategoriesButtonText}>Lưu lựa chọn</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
 
+            {/* Modal thêm danh mục */}
             <Modal
                 visible={showAddCategoryModal}
-                transparent={true}
+                transparent
+                animationType="slide"
                 onRequestClose={() => setShowAddCategoryModal(false)}
             >
                 <View style={styles.modalContainer}>
-                    <View style={styles.categoryModalContent}>
-                        <View style={styles.categoryModalHeader}>
-                            <Text style={styles.categoryModalTitle}>
-                                {selectedParentCategory ? 'Thêm Danh mục Con' : 'Thêm Danh mục Mới'}
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                {selectedParentCategory ? "Thêm danh mục con" : "Thêm danh mục mới"}
                             </Text>
-                            <TouchableOpacity 
-                                onPress={() => {
-                                    setShowAddCategoryModal(false);
-                                    setSelectedParentCategory(null);
-                                }}
-                                style={styles.modalCloseButton}
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setShowAddCategoryModal(false)}
                             >
-                                <Text style={styles.modalCloseButtonText}>×</Text>
+                                <Text style={styles.closeButtonText}>×</Text>
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.label}>Tên danh mục:</Text>
+                        
+                        <Text style={styles.label}>Tên danh mục</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Nhập tên danh mục"
                             value={newCategoryName}
                             onChangeText={setNewCategoryName}
+                            placeholder="Nhập tên danh mục"
                         />
-                        <Text style={styles.label}>Danh mục cha (nếu có):</Text>
-                        <View style={styles.parentCategoryContainer}>
-                            <TouchableOpacity 
-                                style={styles.categoryButton}
-                                onPress={() => setShowParentCategoryList(!showParentCategoryList)}
-                            >
-                                <Text style={styles.categoryButtonText}>
-                                    {selectedParentCategory 
-                                        ? categories.find(cat => cat.id === selectedParentCategory)?.name 
-                                        : 'Chọn danh mục cha'}
+                        
+                        {selectedParentCategory && (
+                            <View style={styles.selectedParentInfo}>
+                                <Text style={styles.selectedParentLabel}>Danh mục cha:</Text>
+                                <Text style={styles.selectedParentName}>
+                                    {findCategoryById(categories, selectedParentCategory)?.name || ''}
                                 </Text>
-                                <Text style={styles.dropdownIcon}>{showParentCategoryList ? '▼' : '▶'}</Text>
-                            </TouchableOpacity>
-                            {showParentCategoryList && (
-                                <View style={styles.parentCategoryList}>
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.parentCategoryItem,
-                                            !selectedParentCategory && styles.selectedParentCategory
-                                        ]}
-                                        onPress={() => {
-                                            setSelectedParentCategory(null);
-                                            setShowParentCategoryList(false);
-                                        }}
-                                    >
-                                        <Text style={[
-                                            styles.parentCategoryText,
-                                            !selectedParentCategory && styles.selectedParentCategoryText
-                                        ]}>
-                                            Không có danh mục cha
-                                        </Text>
-                                    </TouchableOpacity>
-                                    {categories.map(category => (
-                                        <TouchableOpacity
-                                            key={category.id}
-                                            style={[
-                                                styles.parentCategoryItem,
-                                                selectedParentCategory === category.id && styles.selectedParentCategory
-                                            ]}
-                                            onPress={() => {
-                                                setSelectedParentCategory(category.id);
-                                                setShowParentCategoryList(false);
-                                            }}
-                                        >
-                                            <Text style={[
-                                                styles.parentCategoryText,
-                                                selectedParentCategory === category.id && styles.selectedParentCategoryText
-                                            ]}>
-                                                {category.name}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                        <TouchableOpacity 
-                            style={styles.submitButton}
+                            </View>
+                        )}
+                        
+                        <TouchableOpacity
+                            style={styles.addCategoryConfirmButton}
                             onPress={handleAddCategory}
                         >
-                            <Text style={styles.submitButtonText}>Thêm</Text>
+                            <Text style={styles.addCategoryConfirmButtonText}>Thêm danh mục</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
 
+            {/* Modal xác nhận xóa danh mục */}
             <Modal
                 visible={showDeleteConfirmModal}
-                transparent={true}
+                transparent
+                animationType="slide"
                 onRequestClose={() => setShowDeleteConfirmModal(false)}
             >
                 <View style={styles.modalContainer}>
-                    <View style={styles.categoryModalContent}>
-                        <View style={styles.categoryModalHeader}>
-                            <Text style={styles.categoryModalTitle}>Xác nhận xóa</Text>
-                            <TouchableOpacity 
-                                onPress={() => setShowDeleteConfirmModal(false)}
-                                style={styles.modalCloseButton}
-                            >
-                                <Text style={styles.modalCloseButtonText}>×</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <Text style={styles.confirmText}>
+                    <View style={styles.deleteModalContent}>
+                        <Text style={styles.modalTitle}>Xác nhận xóa</Text>
+                        <Text style={styles.deleteModalMessage}>
                             Bạn có chắc chắn muốn xóa danh mục "{categoryToDelete?.name}"?
+                            {categoryToDelete?.subCategories && categoryToDelete.subCategories.length > 0 &&
+                                " Tất cả danh mục con cũng sẽ bị xóa."
+                            }
                         </Text>
-                        <View style={styles.confirmButtons}>
-                            <TouchableOpacity 
-                                style={[styles.confirmButton, styles.cancelButton]}
+                        <View style={styles.deleteModalActions}>
+                            <TouchableOpacity
+                                style={styles.cancelDeleteButton}
                                 onPress={() => setShowDeleteConfirmModal(false)}
                             >
-                                <Text style={styles.confirmButtonText}>Hủy</Text>
+                                <Text style={styles.cancelDeleteButtonText}>Hủy</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.confirmButton, styles.confirmDeleteButton]}
+                            <TouchableOpacity
+                                style={styles.confirmDeleteButton}
                                 onPress={() => {
                                     if (categoryToDelete) {
                                         handleDeleteCategory(categoryToDelete);
@@ -706,7 +649,7 @@ export default function CRUDProducts() {
                                     }
                                 }}
                             >
-                                <Text style={styles.confirmButtonText}>Xóa</Text>
+                                <Text style={styles.confirmDeleteButtonText}>Xóa</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -715,29 +658,26 @@ export default function CRUDProducts() {
 
             <Modal
                 visible={showSuccessModal}
-                transparent={true}
+                transparent
                 animationType="fade"
             >
                 <View style={styles.modalContainer}>
-                    <View style={styles.successModalContent}>
-                        <Text style={styles.successIcon}>✓</Text>
+                    <View style={[styles.modalContent, styles.successModal]}>
                         <Text style={styles.successText}>Thêm sản phẩm thành công!</Text>
-                        <Text style={styles.successSubText}>Đóng sau 2 giây</Text>
                     </View>
                 </View>
             </Modal>
 
             <Modal
                 visible={showErrorModal}
-                transparent={true}
+                transparent
                 animationType="fade"
+                onRequestClose={() => setShowErrorModal(false)}
             >
                 <View style={styles.modalContainer}>
-                    <View style={styles.errorModalContent}>
-                        <Text style={styles.errorIcon}>✕</Text>
-                        <Text style={styles.errorText}>Có lỗi xảy ra!</Text>
-                        <Text style={styles.errorMessage}>{errorMessage}</Text>
-                        <TouchableOpacity 
+                    <View style={[styles.modalContent, styles.errorModal]}>
+                        <Text style={styles.errorText}>{errorMessage}</Text>
+                        <TouchableOpacity
                             style={styles.errorButton}
                             onPress={() => setShowErrorModal(false)}
                         >
@@ -753,448 +693,93 @@ export default function CRUDProducts() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        padding: 20,
         backgroundColor: '#f8f9fa',
     },
-    title: {
-        fontSize: 26,
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    backButton: {
+        marginRight: 15,
+        padding: 8,
+        borderRadius: 8,
+        backgroundColor: '#f0f0f0',
+    },
+    backButtonText: {
+        fontSize: 16,
+        color: '#007AFF',
+        fontWeight: '500',
+    },
+    headerTitle: {
+        fontSize: 20,
         fontWeight: 'bold',
-        marginBottom: 20,
-        textAlign: 'center',
         color: '#2c3e50',
     },
     formContainer: {
-        width: '100%',
+        padding: 20,
         maxWidth: 800,
+        width: '100%',
+        alignSelf: 'center',
+    },
+    formSection: {
         backgroundColor: '#fff',
-        padding: 30,
-        borderRadius: 15,
+        borderRadius: 10,
+        padding: 20,
+        marginBottom: 20,
         shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 5 },
+        shadowRadius: 4,
         elevation: 3,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2c3e50',
+        marginBottom: 15,
     },
     label: {
         fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 8,
         color: '#2c3e50',
+        marginBottom: 8,
+    },
+    required: {
+        color: '#e74c3c',
     },
     input: {
         borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 15,
-        fontSize: 16,
-        marginBottom: 20,
-        backgroundColor: '#fff',
-        color: '#2c3e50',
-    },
-    uploadButton: {
-        backgroundColor: '#3498db',
-        paddingVertical: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    uploadButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    submitButton: {
-        backgroundColor: '#2ecc71',
-        paddingVertical: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginTop: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    submitButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    imageGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 15,
-        marginTop: 15,
-    },
-    imageContainer: {
-        position: 'relative',
-        width: '48%',
-    },
-    imagePreview: {
-        width: '100%',
-        height: 180,
-        borderRadius: 10,
-        backgroundColor: '#f8f9fa',
-    },
-    imageOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        borderRadius: 10,
-    },
-    removeButton: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        backgroundColor: 'rgba(231, 76, 60, 0.8)',
-        borderRadius: 15,
-        width: 30,
-        height: 30,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    removeButtonText: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: 'bold',
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalCloseButton: {
-        position: 'absolute',
-        right: 20,
-        zIndex: 2,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalCloseButtonText: {
-        color: '#fff',
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    navigationButton: {
-        position: 'absolute',
-        top: '50%',
-        left: 20,
-        transform: [{ translateY: -20 }],
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 2,
-    },
-    navigationButtonRight: {
-        left: 'auto',
-        right: 20,
-    },
-    navigationButtonText: {
-        color: '#fff',
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    modalImage: {
-        width: Dimensions.get('window').width,
-        height: Dimensions.get('window').height * 0.8,
-    },
-    modalBottomContainer: {
-        position: 'absolute',
-        bottom: 20,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        zIndex: 2,
-    },
-    imageCounter: {
-        color: '#fff',
-        fontSize: 16,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 15,
-    },
-    exitButton: {
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 20,
-    },
-    exitButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    categoryButton: {
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 10,
-        padding: 15,
-        marginBottom: 20,
-        backgroundColor: '#fff',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    categoryButtonText: {
-        fontSize: 16,
-        color: '#2c3e50',
-    },
-    categoryModalContent: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        width: '90%',
-        maxHeight: '80%',
-        padding: 25,
-        marginTop: 0,
-        position: 'absolute',
-        top: 100,
-        left: '5%',
-        display: 'flex',
-        flexDirection: 'column',
-    },
-    categoryModalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-        paddingBottom: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
-    categoryModalTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#2c3e50',
-    },
-    categoryList: {
-        flex: 1,
-        maxHeight: 500,
-        marginBottom: 20,
-    },
-    categoryItem: {
-        padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
-    selectedCategory: {
-        backgroundColor: '#3498db',
-    },
-    categoryItemText: {
-        fontSize: 16,
-        color: '#2c3e50',
-    },
-    selectedCategoryText: {
-        color: '#fff',
-    },
-    categoryItemContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    categoryItemActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    deleteButton: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: 'rgba(231, 76, 60, 0.8)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    deleteButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    confirmText: {
-        fontSize: 16,
-        color: '#2c3e50',
-        marginBottom: 20,
-    },
-    confirmButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 10,
-    },
-    confirmButton: {
+        borderColor: '#ddd',
+        borderRadius: 8,
         padding: 12,
-        borderRadius: 10,
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cancelButton: {
-        backgroundColor: '#95a5a6',
-    },
-    confirmDeleteButton: {
-        backgroundColor: '#e74c3c',
-    },
-    confirmButtonText: {
-        color: '#fff',
         fontSize: 16,
-        fontWeight: '600',
-    },
-    addSubCategoryButton: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#2ecc71',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 5,
-    },
-    addSubCategoryButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    addCategoryButton: {
-        backgroundColor: '#2ecc71',
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 10,
-        alignItems: 'center',
-        marginTop: 'auto',
-    },
-    addCategoryButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    dropdownIcon: {
-        fontSize: 12,
-        color: '#7f8c8d',
-    },
-    parentCategoryContainer: {
-        position: 'relative',
-        zIndex: 1000,
-    },
-    parentCategoryList: {
-        position: 'absolute',
-        top: '100%',
-        left: 0,
-        right: 0,
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 10,
         backgroundColor: '#fff',
-        maxHeight: 200,
-        marginTop: 5,
+        marginBottom: 15,
     },
-    parentCategoryItem: {
-        padding: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#eee',
-    },
-    selectedParentCategory: {
-        backgroundColor: '#3498db',
-    },
-    parentCategoryText: {
-        fontSize: 16,
-        color: '#2c3e50',
-    },
-    selectedParentCategoryText: {
-        color: '#fff',
-    },
-    submitButtonDisabled: {
-        backgroundColor: '#95a5a6',
-    },
-    successModalContent: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '80%',
-        maxWidth: 300,
-    },
-    successIcon: {
-        fontSize: 50,
-        color: '#2ecc71',
-        marginBottom: 20,
-    },
-    successText: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#2c3e50',
-        marginBottom: 10,
-    },
-    successSubText: {
-        fontSize: 16,
-        color: '#7f8c8d',
-    },
-    errorModalContent: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 30,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '80%',
-        maxWidth: 300,
-    },
-    errorIcon: {
-        fontSize: 50,
-        color: '#e74c3c',
-        marginBottom: 20,
-    },
-    errorText: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#2c3e50',
-        marginBottom: 10,
-    },
-    errorMessage: {
-        fontSize: 16,
-        color: '#7f8c8d',
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    errorButton: {
-        backgroundColor: '#e74c3c',
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 10,
-    },
-    errorButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+    textArea: {
+        height: 120,
+        textAlignVertical: 'top',
     },
     statusContainer: {
         flexDirection: 'row',
-        gap: 10,
-        marginBottom: 20,
+        justifyContent: 'space-between',
     },
     statusButton: {
         flex: 1,
-        padding: 15,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
+        padding: 12,
+        borderRadius: 8,
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        marginHorizontal: 5,
     },
     statusButtonActive: {
         backgroundColor: '#2ecc71',
@@ -1213,5 +798,328 @@ const styles = StyleSheet.create({
     },
     statusButtonTextInactive: {
         color: '#fff',
+    },
+    imagesContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginBottom: 15,
+    },
+    imageWrapper: {
+        width: 100,
+        height: 100,
+        marginRight: 10,
+        marginBottom: 10,
+        position: 'relative',
+    },
+    imagePreview: {
+        width: 100,
+        height: 100,
+        borderRadius: 8,
+    },
+    removeImageButton: {
+        position: 'absolute',
+        top: -10,
+        right: -10,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#e74c3c',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    removeImageButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    addImageButton: {
+        width: 100,
+        height: 100,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        backgroundColor: '#f8f9fa',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addImageButtonText: {
+        fontSize: 24,
+        color: '#3498db',
+    },
+    addImageButtonSubtext: {
+        fontSize: 12,
+        color: '#7f8c8d',
+    },
+    categoryButton: {
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 12,
+        backgroundColor: '#fff',
+    },
+    categoryButtonText: {
+        fontSize: 16,
+        color: '#2c3e50',
+    },
+    submitButton: {
+        backgroundColor: '#2ecc71',
+        paddingVertical: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    submitButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    disabledButton: {
+        backgroundColor: '#95a5a6',
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        width: '90%',
+        maxWidth: 600,
+        maxHeight: '80%',
+        padding: 20,
+    },
+    imageModalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        width: '90%',
+        maxWidth: 800,
+        maxHeight: '90%',
+        padding: 10,
+        position: 'relative',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+        paddingBottom: 15,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#2c3e50',
+    },
+    closeButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#e74c3c',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    closeButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    modalImage: {
+        width: '100%',
+        height: 400,
+    },
+    imageNavigationButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 10,
+    },
+    navButton: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    navButtonText: {
+        color: '#fff',
+        fontSize: 24,
+    },
+    categoryList: {
+        maxHeight: 400,
+        marginBottom: 15,
+    },
+    categoryItem: {
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    categoryItemContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    categoryItemText: {
+        fontSize: 16,
+        color: '#2c3e50',
+    },
+    selectedCategory: {
+        backgroundColor: '#e1f5fe',
+    },
+    selectedCategoryText: {
+        color: '#0288d1',
+        fontWeight: 'bold',
+    },
+    categoryItemActions: {
+        flexDirection: 'row',
+    },
+    addSubCategoryButton: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: '#3498db',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 5,
+    },
+    addSubCategoryButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    deleteButton: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: '#e74c3c',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    deleteButtonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    addCategoryButton: {
+        backgroundColor: '#3498db',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    addCategoryButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    saveCategoriesButton: {
+        backgroundColor: '#2ecc71',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    saveCategoriesButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    selectedParentInfo: {
+        backgroundColor: '#f0f0f0',
+        padding: 10,
+        borderRadius: 8,
+        marginBottom: 15,
+    },
+    selectedParentLabel: {
+        fontSize: 14,
+        color: '#7f8c8d',
+    },
+    selectedParentName: {
+        fontSize: 16,
+        color: '#2c3e50',
+        fontWeight: 'bold',
+    },
+    addCategoryConfirmButton: {
+        backgroundColor: '#2ecc71',
+        padding: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    addCategoryConfirmButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    deleteModalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        width: '90%',
+        maxWidth: 500,
+        padding: 20,
+    },
+    deleteModalMessage: {
+        fontSize: 16,
+        color: '#2c3e50',
+        marginBottom: 20,
+        lineHeight: 24,
+    },
+    deleteModalActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+    },
+    cancelDeleteButton: {
+        backgroundColor: '#95a5a6',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 8,
+        marginRight: 10,
+    },
+    cancelDeleteButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    confirmDeleteButton: {
+        backgroundColor: '#e74c3c',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 8,
+    },
+    confirmDeleteButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    successModal: {
+        padding: 20,
+        backgroundColor: '#2ecc71',
+    },
+    successText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        textAlign: 'center',
+    },
+    errorModal: {
+        padding: 20,
+        backgroundColor: '#fff',
+    },
+    errorText: {
+        color: '#e74c3c',
+        fontSize: 16,
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    errorButton: {
+        backgroundColor: '#e74c3c',
+        paddingVertical: 10,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    errorButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });

@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Modal } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useFirestore } from '../../context/storageFirebase';
-import { StatusToggle } from '../../component/StatusToggle';
-import { ImageManager } from '../../component/ImageManager';
+import { StatusToggle } from '../../components/common/UI/StatusToggle';
+import { ImageManager } from '../../components/common/UI/ImageManager';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadToImgBB } from '../../services/imgbbService';
+import BackButton from '../../components/common/UI/backButton';
 
 interface Product {
     id: string;
@@ -45,7 +46,6 @@ export default function ProductDetail() {
             console.log('Tải dữ liệu cho ID sản phẩm:', id);
             setLoading(true);
             
-            // Load product
             const productData = await getDocument('products', id as string);
             if (productData) {
                 setProduct(productData as Product);
@@ -53,7 +53,6 @@ export default function ProductDetail() {
                 console.log('Tải dữ liệu sản phẩm thành công');
             }
 
-            // Load categories
             const categoriesData = await getDocuments('categories');
             console.log('Số danh mục đã tải:', categoriesData.length);
 
@@ -95,18 +94,14 @@ export default function ProductDetail() {
     useEffect(() => {
         loadData();
 
-        // Bắt sự kiện window khi DOM đã sẵn sàng
         if (typeof window !== 'undefined') {
-            // Lưu vị trí hiện tại vào history state
             const pushState = () => {
                 const state = { id };
                 window.history.pushState(state, '', window.location.href);
             };
             
-            // Gọi pushState để lưu trạng thái hiện tại
             pushState();
             
-            // Bắt sự kiện popstate (khi người dùng nhấn nút back)
             const handlePopState = () => {
                 console.log('Người dùng đã nhấn nút quay lại của trình duyệt');
                 loadData();
@@ -119,10 +114,6 @@ export default function ProductDetail() {
             };
         }
     }, [id]);
-
-    const handleGoBack = () => {
-        router.push('/products/product');
-    };
 
     const handleDelete = () => {
         setShowDeleteModal(true);
@@ -217,9 +208,7 @@ export default function ProductDetail() {
     return (
         <ScrollView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-                    <Text style={styles.backButtonText}>← Quay lại</Text>
-                </TouchableOpacity>
+                <BackButton path={'/products/product'} />
                 <Text style={styles.headerTitle}>Chi tiết sản phẩm</Text>
                 {!isEditing ? (
                     <>
@@ -265,24 +254,30 @@ export default function ProductDetail() {
 
                 <View style={styles.infoSection}>
                     {isEditing ? (
-                        <TextInput
-                            style={styles.editInput}
-                            value={editedProduct.name}
-                            onChangeText={(text) => setEditedProduct(prev => ({ ...prev, name: text }))}
-                            placeholder="Tên sản phẩm"
-                        />
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Tên sản phẩm</Text>
+                            <TextInput
+                                style={styles.editInput}
+                                value={editedProduct.name}
+                                onChangeText={(text) => setEditedProduct(prev => ({ ...prev, name: text }))}
+                                placeholder="Nhập tên sản phẩm"
+                            />
+                        </View>
                     ) : (
                         <Text style={styles.productName}>{product.name}</Text>
                     )}
 
                     {isEditing ? (
-                        <TextInput
-                            style={styles.editInput}
-                            value={editedProduct.price?.toString()}
-                            onChangeText={(text) => setEditedProduct(prev => ({ ...prev, price: parseFloat(text) || 0 }))}
-                            placeholder="Giá sản phẩm"
-                            keyboardType="numeric"
-                        />
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Giá sản phẩm</Text>
+                            <TextInput
+                                style={styles.editInput}
+                                value={editedProduct.price?.toString()}
+                                onChangeText={(text) => setEditedProduct(prev => ({ ...prev, price: parseFloat(text) || 0 }))}
+                                placeholder="Nhập giá sản phẩm"
+                                keyboardType="numeric"
+                            />
+                        </View>
                     ) : (
                         <Text style={styles.productPrice}>
                             {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}
@@ -290,13 +285,16 @@ export default function ProductDetail() {
                     )}
 
                     {isEditing ? (
-                        <TextInput
-                            style={styles.editInput}
-                            value={editedProduct.stock?.toString()}
-                            onChangeText={(text) => setEditedProduct(prev => ({ ...prev, stock: parseInt(text) || 0 }))}
-                            placeholder="Số lượng"
-                            keyboardType="numeric"
-                        />
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Số lượng</Text>
+                            <TextInput
+                                style={styles.editInput}
+                                value={editedProduct.stock?.toString()}
+                                onChangeText={(text) => setEditedProduct(prev => ({ ...prev, stock: parseInt(text) || 0 }))}
+                                placeholder="Nhập số lượng"
+                                keyboardType="numeric"
+                            />
+                        </View>
                     ) : (
                         <Text style={styles.stockStatus}>
                             {product.stock > 0 ? `Còn hàng (${product.stock})` : 'Hết hàng'}
@@ -304,23 +302,29 @@ export default function ProductDetail() {
                     )}
 
                     {isEditing && (
-                        <StatusToggle
-                            status={editedProduct.status || 'active'}
-                            onStatusChange={(status) => setEditedProduct(prev => ({ ...prev, status }))}
-                        />
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>Trạng thái</Text>
+                            <StatusToggle
+                                status={editedProduct.status || 'active'}
+                                onStatusChange={(status) => setEditedProduct(prev => ({ ...prev, status }))}
+                            />
+                        </View>
                     )}
 
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Mô tả</Text>
                         {isEditing ? (
-                            <TextInput
-                                style={[styles.editInput, styles.descriptionInput]}
-                                value={editedProduct.description}
-                                onChangeText={(text) => setEditedProduct(prev => ({ ...prev, description: text }))}
-                                placeholder="Mô tả sản phẩm"
-                                multiline
-                                numberOfLines={4}
-                            />
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Mô tả sản phẩm</Text>
+                                <TextInput
+                                    style={[styles.editInput, styles.descriptionInput]}
+                                    value={editedProduct.description}
+                                    onChangeText={(text) => setEditedProduct(prev => ({ ...prev, description: text }))}
+                                    placeholder="Nhập mô tả sản phẩm"
+                                    multiline
+                                    numberOfLines={4}
+                                />
+                            </View>
                         ) : (
                             <Text style={styles.description}>{product.description}</Text>
                         )}
@@ -332,7 +336,6 @@ export default function ProductDetail() {
                             {(() => {
                                 const elements: JSX.Element[] = [];
                                 
-                                // Hàm đệ quy để tìm và hiển thị danh mục cùng các danh mục con
                                 const findAndRenderCategory = (categoryList: Category[], categoryName: string): boolean => {
                                     for (const cat of categoryList) {
                                         if (cat.name === categoryName) {
@@ -344,7 +347,6 @@ export default function ProductDetail() {
                                             return true;
                                         }
                                         
-                                        // Kiểm tra danh mục con
                                         if (cat.subCategories && cat.subCategories.length > 0) {
                                             const found = findAndRenderCategory(cat.subCategories, categoryName);
                                             if (found) return true;
@@ -353,12 +355,8 @@ export default function ProductDetail() {
                                     return false;
                                 };
                                 
-                                // Duyệt qua từng categoryName trong product.categories
                                 product?.categories?.forEach(categoryName => {
-                                    // Tìm và hiển thị danh mục
                                     const categoryFound = findAndRenderCategory(categories, categoryName);
-                                    
-                                    // Nếu không tìm thấy, hiển thị tên danh mục từ product.categories
                                     if (!categoryFound) {
                                         elements.push(
                                             <View key={categoryName} style={styles.categoryTag}>
@@ -371,17 +369,18 @@ export default function ProductDetail() {
                                 return elements;
                             })()}
                         </View>
-                        {isEditing ? (
-                            <TouchableOpacity
-                                style={styles.categoryButton}
-                                onPress={() => setShowCategoryModal(true)}
-                            >
-                                <Text style={styles.categoryButtonText}>
-                                    {editedProduct.categories?.length ? 'Đã chọn danh mục' : 'Chọn danh mục'}
-                                </Text>
-                            </TouchableOpacity>
-                        ) : (
-                            <></>
+                        {isEditing && (
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Chọn danh mục</Text>
+                                <TouchableOpacity
+                                    style={styles.categoryButton}
+                                    onPress={() => setShowCategoryModal(true)}
+                                >
+                                    <Text style={styles.categoryButtonText}>
+                                        Danh sách danh mục
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
                     </View>
                 </View>
@@ -451,118 +450,114 @@ export default function ProductDetail() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
+        backgroundColor: '#f5f7fa',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 20,
-        backgroundColor: '#fff',
+        padding: 15,
+        backgroundColor: '#ffffff',
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#e0e4e7',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    backButton: {
-        marginRight: 20,
-        padding: 8,
-        borderRadius: 8,
-        backgroundColor: '#f0f0f0',
-    },
-    backButtonText: {
-        fontSize: 16,
-        color: '#007AFF',
-        fontWeight: '500',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 5,
+        elevation: 5,
     },
     headerTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#2c3e50',
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#1a2b49',
+        flex: 1,
+        textAlign: 'center',
     },
     mainContent: {
         flex: 1,
-        padding: 20,
+        padding: 15,
     },
     imageSection: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
-        padding: 20,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 15,
         marginBottom: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        width: '100%',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
         alignItems: 'center',
     },
     productImage: {
-        width: Platform.OS === 'web' ? '100%' : '100%',
-        height: Platform.OS === 'web' ? 600 : 400,
-        borderRadius: 10,
-        backgroundColor: '#f8f8f8',
-        maxWidth: 800,
+        width: '100%',
+        height: Platform.OS === 'web' ? 500 : 350,
+        borderRadius: 12,
+        backgroundColor: '#f0f2f5',
+        resizeMode: 'cover',
     },
     thumbnailContainer: {
         marginTop: 15,
-        width: '100%',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
     },
     thumbnailWrapper: {
-        marginRight: 10,
+        margin: 5,
     },
     thumbnail: {
-        width: 100,
-        height: 100,
+        width: 80,
+        height: 80,
         borderRadius: 8,
         borderWidth: 2,
-        borderColor: '#eee',
+        borderColor: '#e0e4e7',
+        backgroundColor: '#f0f2f5',
     },
     selectedThumbnail: {
         borderColor: '#007AFF',
         borderWidth: 3,
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
     },
     infoSection: {
-        backgroundColor: '#fff',
-        borderRadius: 15,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
         padding: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    productHeader: {
-        marginBottom: 20,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
     },
     productName: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#2c3e50',
+        fontSize: 30,
+        fontWeight: '700',
+        color: '#1a2b49',
         marginBottom: 10,
     },
     productPrice: {
-        fontSize: 24,
-        color: '#E53935',
-        fontWeight: 'bold',
+        fontSize: 26,
+        color: '#e63946',
+        fontWeight: '600',
+        marginBottom: 10,
     },
     stockInfo: {
-        marginBottom: 25,
+        marginBottom: 20,
     },
     stockBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8f9fa',
-        paddingHorizontal: 15,
-        paddingVertical: 8,
+        backgroundColor: '#e6f0fa',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 20,
         alignSelf: 'flex-start',
     },
     stockStatus: {
         fontSize: 16,
         fontWeight: '600',
+        color: '#1a2b49',
         marginRight: 8,
     },
     stockQuantity: {
@@ -570,44 +565,52 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     section: {
-        marginTop: 25,
-        paddingTop: 25,
+        marginTop: 20,
+        paddingTop: 20,
         borderTopWidth: 1,
-        borderTopColor: '#eee',
+        borderTopColor: '#e0e4e7',
     },
     sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#2c3e50',
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#1a2b49',
         marginBottom: 15,
     },
     description: {
         fontSize: 16,
         lineHeight: 24,
-        color: '#666',
+        color: '#4a5568',
     },
     categoriesContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 10,
+        gap: 8,
+        marginBottom: 10,
     },
     categoryTag: {
-        backgroundColor: '#E3F2FD',
-        paddingHorizontal: 15,
-        paddingVertical: 8,
+        backgroundColor: '#e3f2fd',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#bbdefb',
     },
     categoryText: {
-        color: '#1976D2',
+        color: '#1976d2',
         fontSize: 14,
         fontWeight: '500',
     },
     editButton: {
         backgroundColor: '#007AFF',
         paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
-        marginLeft: 'auto',
+        paddingVertical: 10,
+        borderRadius: 25,
+        marginLeft: 10,
+        shadowColor: '#007AFF',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
     },
     editButtonText: {
         color: '#fff',
@@ -616,62 +619,77 @@ const styles = StyleSheet.create({
     },
     editActions: {
         flexDirection: 'row',
-        gap: 10,
+        gap: 12,
         marginLeft: 'auto',
     },
     actionButton: {
         paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
+        paddingVertical: 10,
+        borderRadius: 25,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 3,
     },
     cancelButton: {
-        backgroundColor: '#95a5a6',
+        backgroundColor: '#a0aec0',
     },
     saveButton: {
-        backgroundColor: '#2ecc71',
+        backgroundColor: '#28a745',
     },
     actionButtonText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
     },
+    inputContainer: {
+        marginBottom: 15,
+    },
+    inputLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1a2b49',
+        marginBottom: 8,
+    },
     editInput: {
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
+        borderColor: '#d1d5db',
+        borderRadius: 10,
         padding: 12,
         fontSize: 16,
-        backgroundColor: '#fff',
-        width: '100%',
+        backgroundColor: '#f9fafb',
     },
     descriptionInput: {
-        height: 100,
+        height: 120,
         textAlignVertical: 'top',
     },
     statusContainer: {
         flexDirection: 'row',
-        gap: 10,
+        gap: 12,
         marginTop: 10,
+        marginBottom: 15,
     },
     statusButton: {
         flex: 1,
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#ddd',
+        borderColor: '#d1d5db',
         alignItems: 'center',
+        backgroundColor: '#f9fafb',
     },
     statusButtonActive: {
-        backgroundColor: '#2ecc71',
-        borderColor: '#2ecc71',
+        backgroundColor: '#28a745',
+        borderColor: '#28a745',
     },
     statusButtonInactive: {
-        backgroundColor: '#e74c3c',
-        borderColor: '#e74c3c',
+        backgroundColor: '#dc3545',
+        borderColor: '#dc3545',
     },
     statusButtonText: {
         fontSize: 16,
-        color: '#666',
+        color: '#4a5568',
     },
     statusButtonTextActive: {
         color: '#fff',
@@ -680,11 +698,16 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     uploadButton: {
-        backgroundColor: '#3498db',
+        backgroundColor: '#007bff',
         paddingVertical: 15,
         borderRadius: 10,
         alignItems: 'center',
         marginTop: 20,
+        shadowColor: '#007bff',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
     },
     uploadButtonText: {
         color: '#fff',
@@ -692,38 +715,45 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     categoryButton: {
-        marginTop: 20,
         borderWidth: 1,
-        borderColor: '#e0e0e0',
+        borderColor: '#d1d5db',
         borderRadius: 10,
         padding: 15,
-        marginBottom: 20,
-        backgroundColor: '#fff',
+        backgroundColor: '#f9fafb',
+        alignItems: 'center',
     },
     categoryButtonText: {
         fontSize: 16,
-        color: '#2c3e50',
+        color: '#1a2b49',
+        fontWeight: '500',
     },
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
     },
     modalContent: {
-        width: '80%',
-        backgroundColor: '#fff',
-        borderRadius: 10,
+        width: '85%',
+        backgroundColor: '#ffffff',
+        borderRadius: 15,
         padding: 20,
         alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 5,
     },
     modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 10,
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1a2b49',
+        marginBottom: 15,
     },
     modalMessage: {
         fontSize: 16,
+        color: '#4a5568',
         marginBottom: 20,
         textAlign: 'center',
     },
@@ -731,19 +761,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         width: '100%',
+        gap: 10,
     },
     modalButtonCancel: {
-        backgroundColor: '#95a5a6',
-        padding: 10,
-        borderRadius: 5,
+        backgroundColor: '#a0aec0',
+        padding: 12,
+        borderRadius: 10,
         flex: 1,
-        marginRight: 10,
         alignItems: 'center',
     },
     modalButtonDelete: {
-        backgroundColor: '#e74c3c',
-        padding: 10,
-        borderRadius: 5,
+        backgroundColor: '#dc3545',
+        padding: 12,
+        borderRadius: 10,
         flex: 1,
         alignItems: 'center',
     },
@@ -753,11 +783,16 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     categoryModalContent: {
-        backgroundColor: '#fff',
+        backgroundColor: '#ffffff',
         borderRadius: 15,
         width: '90%',
         maxHeight: '80%',
-        padding: 25,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 5,
     },
     categoryModalHeader: {
         flexDirection: 'row',
@@ -767,14 +802,14 @@ const styles = StyleSheet.create({
     },
     categoryModalTitle: {
         fontSize: 22,
-        fontWeight: 'bold',
-        color: '#2c3e50',
+        fontWeight: '700',
+        color: '#1a2b49',
     },
     modalCloseButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: '#e63946',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -784,29 +819,37 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     categoryList: {
-        maxHeight: 500,
+        maxHeight: 450,
     },
     categoryItem: {
         padding: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#e0e4e7',
+        borderRadius: 8,
+        marginBottom: 5,
     },
     selectedCategory: {
-        backgroundColor: '#3498db',
+        backgroundColor: '#007bff',
     },
     categoryItemText: {
         fontSize: 16,
-        color: '#2c3e50',
+        color: '#1a2b49',
+        fontWeight: '500',
     },
     selectedCategoryText: {
         color: '#fff',
     },
     deleteButton: {
-        backgroundColor: '#e74c3c',
+        backgroundColor: '#dc3545',
         paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
+        paddingVertical: 10,
+        borderRadius: 25,
         marginLeft: 10,
+        shadowColor: '#dc3545',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
     },
     deleteButtonText: {
         color: '#fff',

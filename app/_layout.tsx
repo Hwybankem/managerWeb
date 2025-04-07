@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
-import { AuthContextProvider } from "@/context/AuthContext";
-import { FirestoreProvider } from "@/context/storageFirebase";
+import { AuthContextProvider } from "../context/AuthContext";
+import { FirestoreProvider } from "../context/storageFirebase";
 
 export default function RootLayout() {
   return (

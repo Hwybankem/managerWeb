@@ -2,22 +2,22 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { getAuth, User, onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, UserCredential } from "firebase/auth";
 import { app } from "../config/firebaseConfig"; // Đường dẫn có thể thay đổi
 import { View, Text } from "react-native";
-import { collection, doc, getDoc, getFirestore, where, query, getDocs, setDoc } from "firebase/firestore";
-import { getApps } from "firebase/app";
+import {  doc, getDoc, getFirestore,setDoc } from "firebase/firestore";
 
 // Định nghĩa kiểu dữ liệu cho AuthContext
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<User>;
   register: (
-    email: string,
+    username: string,
     password: string,
     fullName: string,
     phone: string,
-    address: string,
-  ) => Promise<void>;
+    role: string,
+    avatar?: string,
+  ) => Promise<UserCredential>;
   logout: () => Promise<void>;
-  checkRole: (requiredRole: string, email: string) => Promise<boolean>;
+  checkRole: (requiredRole: string, uid: string) => Promise<boolean>;
 }
 
 // Tạo Context
@@ -50,29 +50,47 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
 
   // Hàm đăng ký
   const register = async (
-    email: string,
+    username: string,
     password: string,
     fullName: string,
     phone: string,
-    address: string,
-  ) => {
+    role: string = 'customer',
+    avatar?: string,
+  ): Promise<UserCredential> => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("Bắt đầu đăng ký người dùng:", username);
+      // Tạo tài khoản authentication trước (username là email)
+      const userCredential = await createUserWithEmailAndPassword(auth, username, password);
       const newUser = userCredential.user; 
+      
+      // Sau đó lưu thông tin chi tiết vào Firestore
       await setDoc(doc(db, "users", newUser.uid), {
-        userId: newUser.uid, // Lưu Firebase UID
-        email,
-        fullName,
-        phone,
-        address,
-        role: "customer", // Mặc định là "customer"
+        id: newUser.uid, // Lưu Firebase UID
+        username,
+        fullName: fullName || '',
+        phone: phone || '',
+        role: role, // Vai trò có thể tùy chỉnh thay vì mặc định "customer"
+        avatar: avatar || '',
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+      
+      console.log("Đăng ký thành công cho người dùng:", username);
       setUser(newUser);
-    } catch (error) {
+      return userCredential;
+    } catch (error: any) {
       console.error("Lỗi khi đăng ký:", error);
-      throw error;
+      let errorMessage = "Lỗi không xác định khi đăng ký";
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "Email đã được sử dụng. Vui lòng sử dụng email khác.";
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = "Email không hợp lệ. Vui lòng kiểm tra lại.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "Mật khẩu quá yếu. Vui lòng sử dụng mật khẩu mạnh hơn.";
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 
