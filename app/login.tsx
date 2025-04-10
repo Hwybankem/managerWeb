@@ -113,13 +113,6 @@ export default function Login() {
             {isLoading ? "Đang đăng nhập..." : "Đăng Nhập"}
           </Text>
         </TouchableOpacity>
-
-        <View style={styles.registerLink}>
-          <Text style={styles.registerText}>Chưa có tài khoản? </Text>
-          <Link href="/register" style={styles.linkText}>
-            Đăng ký ngay
-          </Link>
-        </View>
       </View>
     </View>
   );
@@ -188,15 +181,6 @@ const styles = StyleSheet.create({
     color: "#d32f2f",
     fontSize: 14,
     fontWeight: "500",
-  },
-  registerLink: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  registerText: {
-    fontSize: 14,
-    color: "#333",
   },
   linkText: {
     fontSize: 14,

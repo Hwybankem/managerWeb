@@ -107,7 +107,8 @@ export default function AddVendor() {
         } else {
             const query = removeAccents(userSearchQuery.toLowerCase());
             const filtered = availableUsers.filter(user => 
-                removeAccents((user.fullName || user.username).toLowerCase()).includes(query)
+                removeAccents((user.fullName || user.username).toLowerCase()).includes(query) ||
+                user.role.toLowerCase().includes(query)
             );
             setFilteredUsers(filtered);
         }
@@ -117,8 +118,10 @@ export default function AddVendor() {
         try {
             const usersData = await getDocuments('users');
             let filteredUsers = usersData.filter((user: any) => 
-                user.role === 'dealer' || user.role === 'shipper'
+                user.role === 'dealer'
             );
+
+            console.log('Danh sách người dùng:', filteredUsers);
             const currentAuthorizedUserIds = authorizedUsers.map(u => u.userId);
             filteredUsers = filteredUsers.filter((user: any) => 
                 !currentAuthorizedUserIds.includes(user.id)

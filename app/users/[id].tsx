@@ -32,8 +32,8 @@ export default function UserDetail() {
 
     const roles = [
         { value: 'admin', label: 'Quản trị viên' },
-        { value: 'manager', label: 'Quản lý' },
-        { value: 'staff', label: 'Nhân viên' },
+        { value: 'dealer', label: 'Đại lý ' },
+        { value: 'customer', label: 'Người dùng' },
     ];
 
     const loadData = async () => {
@@ -267,7 +267,7 @@ export default function UserDetail() {
                                 <Text style={[
                                     styles.roleBadge, 
                                     user.role === 'admin' ? styles.roleBadge_admin : 
-                                    user.role === 'manager' ? styles.roleBadge_manager : 
+                                    user.role === 'dealer' ? styles.roleBadge_manager : 
                                     styles.roleBadge_staff
                                 ]}>
                                     {roles.find(r => r.value === user.role)?.label || user.role}

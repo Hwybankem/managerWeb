@@ -1,14 +1,29 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image, SafeAreaView, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../context/AuthContext'; 
 
 export default function HomeScreen() {
   const router = useRouter();
+  const {logout} = useAuth(); // Assuming you have a logout function in your auth context
+
+  const LogOut = () => {
+    logout()
+      .then(() => {
+        // Handle successful logout (e.g., navigate to login screen)
+        router.push('/login'); // Redirect to login screen
+      })
+      .catch((error) => {
+        console.error("Logout error:", error);
+      });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a2b49" />
       <View style={styles.header}>
+        <TouchableOpacity onPress={LogOut}> Đăng xuất
+          </TouchableOpacity>
         <Text style={styles.headerTitle}>Quản lý hệ thống</Text>
       </View>
       

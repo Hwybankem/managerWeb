@@ -31,6 +31,7 @@ interface Vendor {
 interface OrderRequest {
     id: string;
     productName: string;
+    productId: string;
     quantity: number;
     requestDate: Date;
     status: 'pending' | 'approved' | 'rejected';
@@ -72,6 +73,8 @@ export default function VendorDetail() {
     const [editedLogo, setEditedLogo] = useState<string>('');
     const [showProvinceModal, setShowProvinceModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
     const [filteredProvinces, setFilteredProvinces] = useState<string[]>(vietnamProvinces);
     const [provinceSearchQuery, setProvinceSearchQuery] = useState('');
     const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
@@ -118,17 +121,25 @@ export default function VendorDetail() {
                 setAuthorizedUsers(vendorData.authorizedUsers || []);
                 console.log('Tải dữ liệu đại lý thành công');
                 
-                const ordersData = await queryDocuments('orderRequests', 'vendorId', '==', id);
+                // Lấy danh sách yêu cầu nhập hàng của đại lý
+                console.log('Đang tải danh sách yêu cầu nhập hàng...');
+                const ordersData = await queryDocuments('importRequests', 'vendorId', '==', id);
+                console.log('Số lượng yêu cầu nhập hàng:', ordersData.length);
                 
                 const formattedOrders: OrderRequest[] = ordersData.map((order: any) => ({
                     id: order.id,
                     productName: order.productName,
+                    productId: order.productId,
                     quantity: order.quantity,
                     requestDate: order.requestDate?.toDate() || new Date(),
                     status: order.status || 'pending'
                 }));
                 
                 setOrderRequests(formattedOrders);
+                console.log('Đã tải xong danh sách yêu cầu nhập hàng');
+            } else {
+                console.error('Không tìm thấy đại lý với ID:', id);
+                Alert.alert('Lỗi', 'Không tìm thấy thông tin đại lý');
             }
         } catch (error) {
             console.error('Lỗi khi tải dữ liệu:', error);
@@ -234,7 +245,8 @@ export default function VendorDetail() {
 
     const handleUpdateOrderStatus = async (orderId: string, newStatus: 'approved' | 'rejected') => {
         try {
-            await updateDocument('orderRequests', orderId, { 
+            // Cập nhật trạng thái yêu cầu
+            await updateDocument('importRequests', orderId, { 
                 status: newStatus,
                 updatedAt: new Date()
             });
@@ -255,15 +267,55 @@ export default function VendorDetail() {
                     setVendor({...vendor, hasOrders: false});
                 }
             }
+    
+            // Nếu status là approved, thêm sản phẩm vào vendor_products
+            if (newStatus === 'approved') {
+                const orderToApprove = orderRequests.find(order => order.id === orderId);
+                if (orderToApprove) {
+                    // Tạo ID cho tài liệu trong vendor_products
+                    const vendorProductDocId = `${id}_${orderToApprove.productId}`; // Ví dụ: CellphoneS_product123
+    
+                    // Kiểm tra xem tài liệu đã tồn tại trong vendor_products chưa
+                    const vendorProductDocRef = await getDocument('vendor_products', vendorProductDocId);
+    
+                    if (vendorProductDocRef) {
+                        // Nếu đã có, cộng thêm số lượng vào stock
+                        const currentStock = vendorProductDocRef.stock || 0;
+                        await updateDocument('vendor_products', vendorProductDocId, {
+                            stock: currentStock + orderToApprove.quantity,
+                            updatedAt: new Date()
+                        });
+                    } else {
+                        // Nếu chưa có, tạo mới tài liệu
+                        await addDocument('vendor_products', {
+                            id: id, // ID của vendor (CellphoneS)
+                            products: orderToApprove.productId, // ID của sản phẩm
+                            stock: orderToApprove.quantity, // Số lượng
+                            createdAt: new Date(),
+                            updatedAt: new Date()
+                        }, vendorProductDocId);
+                    }
+    
+                    // Cập nhật số lượng tồn kho của sản phẩm trong collection products
+                    const productDoc = await getDocument('products', orderToApprove.productId);
+                    if (productDoc) {
+                        const currentStock = productDoc.stock || 0;
+                        await updateDocument('products', orderToApprove.productId, {
+                            stock: currentStock - orderToApprove.quantity,
+                            updatedAt: new Date()
+                        });
+                    }
+                }
+            }
             
             setOrderRequests(updatedOrders);
-            Alert.alert('Thành công', `Đã ${newStatus === 'approved' ? 'chấp nhận' : 'từ chối'} yêu cầu`);
+            setSuccessMessage(newStatus === 'approved' ? 'Đã duyệt yêu cầu thành công' : 'Đã từ chối yêu cầu');
+            setShowSuccessModal(true);
         } catch (error) {
             console.error('Lỗi khi cập nhật trạng thái yêu cầu:', error);
             Alert.alert('Lỗi', 'Không thể cập nhật trạng thái yêu cầu');
         }
     };
-
     const loadUsers = async () => {
         try {
             const usersData = await getDocuments('users');
@@ -532,7 +584,9 @@ export default function VendorDetail() {
                         
                         {orderRequests.length > 0 ? (
                             <View style={styles.orderList}>
-                                {orderRequests.map((order) => (
+                                {orderRequests
+                                    .filter(order => order.status !== 'approved' || 'rejected')
+                                    .map((order) => (
                                     <View key={order.id} style={styles.orderItem}>
                                         <View style={styles.orderInfo}>
                                             <Text style={styles.orderProductName}>{order.productName}</Text>
@@ -746,6 +800,29 @@ export default function VendorDetail() {
                                 <Text style={styles.createUserLink}>tạo người dùng mới</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={showSuccessModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowSuccessModal(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <View style={styles.successModalContent}>
+                        <Text style={styles.successModalTitle}>Thông báo</Text>
+                        <Text style={styles.successModalMessage}>{successMessage}</Text>
+                        <TouchableOpacity
+                            style={styles.successModalButton}
+                            onPress={() => {
+                                setShowSuccessModal(false);
+                                loadData(); // Tải lại dữ liệu sau khi đóng modal
+                            }}
+                        >
+                            <Text style={styles.successModalButtonText}>Đóng</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
@@ -1295,6 +1372,37 @@ const styles = StyleSheet.create({
     timeValue: {
         fontSize: 15,
         color: '#2c3e50',
+        fontWeight: '600',
+    },
+    successModalContent: {
+        backgroundColor: '#fff',
+        borderRadius: 10,
+        padding: 20,
+        width: '80%',
+        maxWidth: 400,
+        alignItems: 'center',
+    },
+    successModalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#2c3e50',
+        marginBottom: 15,
+    },
+    successModalMessage: {
+        fontSize: 16,
+        color: '#34495e',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    successModalButton: {
+        backgroundColor: '#3498db',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 5,
+    },
+    successModalButtonText: {
+        color: '#fff',
+        fontSize: 16,
         fontWeight: '600',
     },
 });
