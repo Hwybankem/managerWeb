@@ -18,7 +18,6 @@ import { uploadToImgBB } from '../../services/imgbbService';
 import { router, useLocalSearchParams } from 'expo-router';
 import removeAccents from '@/components/utils/stringUtils';
 
-// Các interface và danh sách tỉnh thành không thay đổi
 interface AuthorizedUser {
     userId: string;
     username: string;
@@ -312,43 +311,39 @@ export default function AddVendor() {
 
                     {/* Phần quản lý ủy quyền người dùng */}
                     <Text style={styles.label}>Người dùng được ủy quyền</Text>
-                    {isEdit && (
-                        <View style={styles.sectionHeader}>
-                            <TouchableOpacity
-                                style={styles.addUserButton}
-                                onPress={() => router.push('/users/addUser')}
-                            >
-                                <Text style={styles.addUserButtonText}>+ Thêm người dùng</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.addUserButton, { marginLeft: 10 }]}
-                                onPress={handleOpenAuthorizeModal}
-                            >
-                                <Text style={styles.addUserButtonText}>Ủy quyền</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                    <View style={styles.sectionHeader}>
+                        <TouchableOpacity
+                            style={styles.addUserButton}
+                            onPress={() => router.push('/users/addUser')}
+                        >
+                            <Text style={styles.addUserButtonText}>+ Thêm người dùng</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.addUserButton, { marginLeft: 10 }]}
+                            onPress={handleOpenAuthorizeModal}
+                        >
+                            <Text style={styles.addUserButtonText}>Ủy quyền</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     {authorizedUsers.length > 0 ? (
                         <View style={styles.authorizedUsersContainer}>
                             {authorizedUsers.map(user => (
                                 <View key={user.userId} style={styles.authorizedUserItem}>
-                                    <View style={styles.authorizedUserInfo}>
+                                    <View style={styles.authorizationUserInfo}>
                                         <Text style={styles.authorizedUserName}>
                                             {user.fullName || user.username}
                                         </Text>
                                         <Text style={styles.authorizedUserUsername}>
-                                            @{user.username}
+                                            {user.username}
                                         </Text>
                                     </View>
-                                    {isEdit && (
-                                        <TouchableOpacity
-                                            style={styles.removeUserButton}
-                                            onPress={() => handleRemoveAuthorizedUser(user.userId)}
-                                        >
-                                            <Text style={styles.removeUserButtonText}>Hủy</Text>
-                                        </TouchableOpacity>
-                                    )}
+                                    <TouchableOpacity
+                                        style={styles.removeUserButton}
+                                        onPress={() => handleRemoveAuthorizedUser(user.userId)}
+                                    >
+                                        <Text style={styles.removeUserButtonText}>Hủy</Text>
+                                    </TouchableOpacity>
                                 </View>
                             ))}
                         </View>
@@ -539,7 +534,6 @@ export default function AddVendor() {
     );
 }
 
-// Styles không thay đổi
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -840,7 +834,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
         elevation: 1,
     },
-    authorizedUserInfo: {
+    authorizationUserInfo: {
         flex: 1,
     },
     authorizedUserName: {

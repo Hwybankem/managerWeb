@@ -25,6 +25,7 @@ export default function AddUser() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
+    const [address, setAddress] = useState('');
     const [role, setRole] = useState<'admin' | 'customer' | 'dealer' | 'shipper'>('dealer')
     const [avatar, setAvatar] = useState<string>('');
     const [showRoleModal, setShowRoleModal] = useState(false);
@@ -98,6 +99,7 @@ export default function AddUser() {
                 password,
                 fullName,
                 phone,
+                address,
                 role,
                 avatarUrl,
             );
@@ -197,6 +199,14 @@ export default function AddUser() {
                         onChangeText={setPhone}
                         placeholder="Nhập số điện thoại"
                         keyboardType="phone-pad"
+                    />
+
+                    <Text style={styles.label}>Địa chỉ</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={address}
+                        onChangeText={setAddress}
+                        placeholder="Nhập địa chỉ"
                     />
                 </View>
 

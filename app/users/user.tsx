@@ -203,7 +203,7 @@ export default function UserList() {
 
                                 <View style={styles.userDetails}>
                                     <Text style={styles.userName}>{item.fullName || item.username}</Text>
-                                    <Text style={styles.userUsername}>@{item.username}</Text>
+                                    <Text style={styles.userUsername}>{item.username}</Text>
                                     <Text style={styles.userPhone}>{item.phone || 'Chưa cập nhật SĐT'}</Text>
                                     <View style={[styles.roleBadge, getRoleBadgeStyle(item.role)]}>
                                         <Text style={styles.roleText}>{item.role}</Text>

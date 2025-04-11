@@ -554,7 +554,7 @@ export default function VendorDetail() {
                                     <View key={user.userId} style={styles.authorizedUserItem}>
                                         <View style={styles.authorizedUserInfo}>
                                             <Text style={styles.authorizedUserName}>{user.fullName || user.username}</Text>
-                                            <Text style={styles.authorizedUserUsername}>@{user.username}</Text>
+                                            <Text style={styles.authorizedUserUsername}>{user.username}</Text>
                                         </View>
                                         {isEditing && (
                                             <TouchableOpacity

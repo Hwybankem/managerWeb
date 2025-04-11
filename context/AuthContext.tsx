@@ -13,6 +13,7 @@ interface AuthContextType {
     password: string,
     fullName: string,
     phone: string,
+    address: string,
     role: string,
     avatar?: string,
   ) => Promise<UserCredential>;
@@ -54,6 +55,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
     password: string,
     fullName: string,
     phone: string,
+    address: string,
     role: string = 'customer',
     avatar?: string,
   ): Promise<UserCredential> => {
@@ -69,6 +71,7 @@ export const AuthContextProvider: React.FC<{ children: ReactNode }> = ({ childre
         username,
         fullName: fullName || '',
         phone: phone || '',
+        address: address || '',
         role: role, // Vai trò có thể tùy chỉnh thay vì mặc định "customer"
         avatar: avatar || '',
         createdAt: new Date(),
