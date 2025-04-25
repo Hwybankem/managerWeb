@@ -34,6 +34,7 @@ export default function UserDetail() {
         { value: 'admin', label: 'Quản trị viên' },
         { value: 'dealer', label: 'Đại lý ' },
         { value: 'customer', label: 'Người dùng' },
+        { value: 'shipper', label: 'Nhân viên vận chuyển' },
     ];
 
     const loadData = async () => {

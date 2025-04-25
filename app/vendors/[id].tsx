@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert, Modal, FlatList, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useFirestore } from '../../context/storageFirebase';
-import { StatusToggle } from '../../components/common/UI/StatusToggle';
 import { ImageManager } from '../../components/common/UI/ImageManager';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadToImgBB } from '../../services/imgbbService';
@@ -74,23 +73,25 @@ export default function VendorDetail() {
     const [showProvinceModal, setShowProvinceModal] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showAutoRejectModal, setShowAutoRejectModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [filteredProvinces, setFilteredProvinces] = useState<string[]>(vietnamProvinces);
     const [provinceSearchQuery, setProvinceSearchQuery] = useState('');
     const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
-    
     const [showAuthorizeModal, setShowAuthorizeModal] = useState(false);
     const [availableUsers, setAvailableUsers] = useState<User[]>([]);
     const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
     const [userSearchQuery, setUserSearchQuery] = useState('');
     const [authorizedUsers, setAuthorizedUsers] = useState<AuthorizedUser[]>([]);
+    const [showStockWarningModal, setShowStockWarningModal] = useState(false); // State điều khiển modal cảnh báo tồn kho
+    const [stockWarningMessage, setStockWarningMessage] = useState(''); // State chứa thông báo lỗi tồn kho
 
     useEffect(() => {
         if (provinceSearchQuery.trim() === '') {
             setFilteredProvinces(vietnamProvinces);
         } else {
             const query = provinceSearchQuery.toLowerCase();
-            const filtered = vietnamProvinces.filter(province => 
+            const filtered = vietnamProvinces.filter(province =>
                 province.toLowerCase().includes(query)
             );
             setFilteredProvinces(filtered);
@@ -102,7 +103,7 @@ export default function VendorDetail() {
             setFilteredUsers(availableUsers);
         } else {
             const query = removeAccents(userSearchQuery.toLowerCase());
-            const filtered = availableUsers.filter(user => 
+            const filtered = availableUsers.filter(user =>
                 removeAccents((user.fullName || user.username).toLowerCase()).includes(query)
             );
             setFilteredUsers(filtered);
@@ -113,19 +114,19 @@ export default function VendorDetail() {
         try {
             console.log('Tải dữ liệu cho ID đại lý:', id);
             setLoading(true);
-            
+
             const vendorData = await getDocument('vendors', id as string);
             if (vendorData) {
                 setVendor(vendorData as Vendor);
                 setEditedLogo(vendorData.logo || '');
                 setAuthorizedUsers(vendorData.authorizedUsers || []);
                 console.log('Tải dữ liệu đại lý thành công');
-                
+
                 // Lấy danh sách yêu cầu nhập hàng của đại lý
                 console.log('Đang tải danh sách yêu cầu nhập hàng...');
                 const ordersData = await queryDocuments('importRequests', 'vendorId', '==', id);
                 console.log('Số lượng yêu cầu nhập hàng:', ordersData.length);
-                
+
                 const formattedOrders: OrderRequest[] = ordersData.map((order: any) => ({
                     id: order.id,
                     productName: order.productName,
@@ -134,7 +135,7 @@ export default function VendorDetail() {
                     requestDate: order.requestDate?.toDate() || new Date(),
                     status: order.status || 'pending'
                 }));
-                
+
                 setOrderRequests(formattedOrders);
                 console.log('Đã tải xong danh sách yêu cầu nhập hàng');
             } else {
@@ -157,16 +158,16 @@ export default function VendorDetail() {
                 const state = { id };
                 window.history.pushState(state, '', window.location.href);
             };
-            
+
             pushState();
-            
+
             const handlePopState = () => {
                 console.log('Người dùng đã nhấn nút quay lại của trình duyệt');
                 loadData();
             };
-            
+
             window.addEventListener('popstate', handlePopState);
-            
+
             return () => {
                 window.removeEventListener('popstate', handlePopState);
             };
@@ -216,7 +217,7 @@ export default function VendorDetail() {
             const updatedData = {
                 ...editedVendor,
                 logo: editedLogo,
-                authorizedUsers: authorizedUsers, // Cập nhật danh sách người dùng được ủy quyền
+                authorizedUsers: authorizedUsers,
                 updatedAt: new Date()
             };
 
@@ -245,90 +246,111 @@ export default function VendorDetail() {
 
     const handleUpdateOrderStatus = async (orderId: string, newStatus: 'approved' | 'rejected') => {
         try {
-            // Cập nhật trạng thái yêu cầu
-            await updateDocument('importRequests', orderId, { 
+            const orderToUpdate = orderRequests.find(order => order.id === orderId);
+            if (!orderToUpdate) {
+                Alert.alert('Lỗi', 'Không tìm thấy yêu cầu nhập hàng.');
+                return;
+            }
+
+            if (newStatus === 'approved') {
+                console.log(`Đang kiểm tra kho cho sản phẩm: ${orderToUpdate.productId}, số lượng yêu cầu: ${orderToUpdate.quantity}`);
+                const productDoc = await getDocument('products', orderToUpdate.productId);
+
+                if (!productDoc) {
+                    console.error(`Không tìm thấy sản phẩm với ID: ${orderToUpdate.productId}`);
+                    Alert.alert('Lỗi', `Không tìm thấy thông tin sản phẩm "${orderToUpdate.productName}". Không thể duyệt yêu cầu.`);
+                    return;
+                }
+
+                const currentStock = productDoc.stock || 0;
+                console.log(`Tồn kho hiện tại của sản phẩm ${orderToUpdate.productId}: ${currentStock}`);
+
+                if (currentStock < orderToUpdate.quantity) {
+                    console.warn(`Tồn kho không đủ. Yêu cầu: ${orderToUpdate.quantity}, Hiện có: ${currentStock}`);
+                    setStockWarningMessage(`Tồn kho không đủ cho sản phẩm "${orderToUpdate.productName}". Yêu cầu: ${orderToUpdate.quantity}, Hiện có: ${currentStock}. Không thể duyệt yêu cầu.`);
+                    setShowStockWarningModal(true); 
+                    return; 
+                }
+
+                 // Tạo ID cho tài liệu trong vendor_products
+                 const vendorProductDocId = `${id}_${orderToUpdate.productId}`;
+                 // Kiểm tra xem tài liệu đã tồn tại trong vendor_products chưa
+                 const vendorProductDocRef = await getDocument('vendor_products', vendorProductDocId);
+
+                 if (vendorProductDocRef) {
+                     // Nếu đã có, cộng thêm số lượng vào stock
+                     const currentVendorStock = vendorProductDocRef.stock || 0;
+                     await updateDocument('vendor_products', vendorProductDocId, {
+                         stock: currentVendorStock + orderToUpdate.quantity,
+                         updatedAt: new Date()
+                     });
+                     console.log(`Đã cập nhật stock cho vendor_product: ${vendorProductDocId}`);
+                 } else {
+                     // Nếu chưa có, tạo mới tài liệu
+                     await addDocument('vendor_products', {
+                         id: id, // ID của vendor
+                         products: orderToUpdate.productId, // ID của product
+                         stock: orderToUpdate.quantity,
+                         createdAt: new Date(),
+                         updatedAt: new Date()
+                     }, vendorProductDocId); // Sử dụng ID tùy chỉnh
+                     console.log(`Đã tạo mới vendor_product: ${vendorProductDocId}`);
+                 }
+
+                 // Cập nhật số lượng tồn kho của sản phẩm trong collection products (trừ đi số lượng đã duyệt)
+                 await updateDocument('products', orderToUpdate.productId, {
+                     stock: currentStock - orderToUpdate.quantity, // Sử dụng currentStock đã lấy trước đó
+                     updatedAt: new Date()
+                 });
+                 console.log(`Đã cập nhật stock cho product: ${orderToUpdate.productId}`);
+
+            } // Kết thúc khối if (newStatus === 'approved')
+
+            // --- Logic cập nhật trạng thái yêu cầu (luôn chạy cho cả approved và rejected) ---
+            await updateDocument('importRequests', orderId, {
                 status: newStatus,
                 updatedAt: new Date()
             });
-            
-            const updatedOrders = orderRequests.map(order => 
-                order.id === orderId ? {...order, status: newStatus} : order
+            console.log(`Đã cập nhật trạng thái yêu cầu ${orderId} thành ${newStatus}`);
+
+            // Cập nhật lại danh sách yêu cầu trên giao diện
+            const updatedOrders = orderRequests.map(order =>
+                order.id === orderId ? { ...order, status: newStatus } : order
             );
-            
+
+            // Kiểm tra xem còn yêu cầu nào đang chờ không để cập nhật cờ hasOrders
             const hasPendingOrders = updatedOrders.some(order => order.status === 'pending');
-            
-            if (!hasPendingOrders) {
-                await updateDocument('vendors', id as string, { 
-                    hasOrders: false,
+            if (vendor && vendor.hasOrders !== hasPendingOrders) { // Chỉ cập nhật nếu trạng thái thay đổi
+                await updateDocument('vendors', id as string, {
+                    hasOrders: hasPendingOrders,
                     updatedAt: new Date()
                 });
-                
-                if (vendor) {
-                    setVendor({...vendor, hasOrders: false});
-                }
+                setVendor(prev => prev ? { ...prev, hasOrders: hasPendingOrders } : null);
+                console.log(`Đã cập nhật trạng thái hasOrders của vendor ${id} thành ${hasPendingOrders}`);
             }
-    
-            // Nếu status là approved, thêm sản phẩm vào vendor_products
-            if (newStatus === 'approved') {
-                const orderToApprove = orderRequests.find(order => order.id === orderId);
-                if (orderToApprove) {
-                    // Tạo ID cho tài liệu trong vendor_products
-                    const vendorProductDocId = `${id}_${orderToApprove.productId}`; // Ví dụ: CellphoneS_product123
-    
-                    // Kiểm tra xem tài liệu đã tồn tại trong vendor_products chưa
-                    const vendorProductDocRef = await getDocument('vendor_products', vendorProductDocId);
-    
-                    if (vendorProductDocRef) {
-                        // Nếu đã có, cộng thêm số lượng vào stock
-                        const currentStock = vendorProductDocRef.stock || 0;
-                        await updateDocument('vendor_products', vendorProductDocId, {
-                            stock: currentStock + orderToApprove.quantity,
-                            updatedAt: new Date()
-                        });
-                    } else {
-                        // Nếu chưa có, tạo mới tài liệu
-                        await addDocument('vendor_products', {
-                            id: id, // ID của vendor (CellphoneS)
-                            products: orderToApprove.productId, // ID của sản phẩm
-                            stock: orderToApprove.quantity, // Số lượng
-                            createdAt: new Date(),
-                            updatedAt: new Date()
-                        }, vendorProductDocId);
-                    }
-    
-                    // Cập nhật số lượng tồn kho của sản phẩm trong collection products
-                    const productDoc = await getDocument('products', orderToApprove.productId);
-                    if (productDoc) {
-                        const currentStock = productDoc.stock || 0;
-                        await updateDocument('products', orderToApprove.productId, {
-                            stock: currentStock - orderToApprove.quantity,
-                            updatedAt: new Date()
-                        });
-                    }
-                }
-            }
-            
+
             setOrderRequests(updatedOrders);
             setSuccessMessage(newStatus === 'approved' ? 'Đã duyệt yêu cầu thành công' : 'Đã từ chối yêu cầu');
             setShowSuccessModal(true);
+
         } catch (error) {
             console.error('Lỗi khi cập nhật trạng thái yêu cầu:', error);
-            Alert.alert('Lỗi', 'Không thể cập nhật trạng thái yêu cầu');
+            Alert.alert('Lỗi', 'Không thể cập nhật trạng thái yêu cầu. Vui lòng thử lại.');
         }
     };
     const loadUsers = async () => {
         try {
             const usersData = await getDocuments('users');
-            
-            let filteredUsers = usersData.filter((user: any) => 
-                user.role === 'dealer' 
+
+            let filteredUsers = usersData.filter((user: any) =>
+                user.role === 'dealer'
             );
-            
+
             const currentAuthorizedUserIds = authorizedUsers.map(u => u.userId);
-            filteredUsers = filteredUsers.filter((user: any) => 
+            filteredUsers = filteredUsers.filter((user: any) =>
                 !currentAuthorizedUserIds.includes(user.id)
             );
-            
+
             const formattedUsers: User[] = filteredUsers.map((user: any) => ({
                 id: user.id,
                 username: user.username,
@@ -338,7 +360,7 @@ export default function VendorDetail() {
                 avatar: user.avatar || '',
                 status: user.status || ''
             }));
-            
+
             setAvailableUsers(formattedUsers);
             setFilteredUsers(formattedUsers);
         } catch (error) {
@@ -359,12 +381,12 @@ export default function VendorDetail() {
                 username: user.username,
                 fullName: user.fullName
             };
-            
+
             const updatedAuthorizedUsers = [...authorizedUsers, newAuthorizedUser];
-            
+
             setAuthorizedUsers(updatedAuthorizedUsers);
             setAvailableUsers(prev => prev.filter(u => u.id !== user.id));
-            
+
             Alert.alert('Thành công', `Đã ủy quyền cho người dùng ${user.fullName || user.username}`);
         } catch (error) {
             console.error('Lỗi khi ủy quyền người dùng:', error);
@@ -376,7 +398,7 @@ export default function VendorDetail() {
         try {
             const updatedAuthorizedUsers = authorizedUsers.filter(u => u.userId !== userId);
             setAuthorizedUsers(updatedAuthorizedUsers);
-            
+
             Alert.alert('Thành công', 'Đã hủy ủy quyền cho người dùng');
             loadUsers();
         } catch (error) {
@@ -489,8 +511,8 @@ export default function VendorDetail() {
                         ) : (
                             <Text style={styles.fieldValue}>{vendor.province || 'Chưa có thông tin'}</Text>
                         )}
-                        
-                        <Text style={[styles.fieldLabel, {marginTop: 15}]}>Địa chỉ</Text>
+
+                        <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Địa chỉ</Text>
                         {isEditing ? (
                             <TextInput
                                 style={styles.editInput}
@@ -501,8 +523,8 @@ export default function VendorDetail() {
                         ) : (
                             <Text style={styles.fieldValue}>{vendor.address}</Text>
                         )}
-                        
-                        <Text style={[styles.fieldLabel, {marginTop: 15}]}>Số điện thoại</Text>
+
+                        <Text style={[styles.fieldLabel, { marginTop: 15 }]}>Số điện thoại</Text>
                         {isEditing ? (
                             <TextInput
                                 style={styles.editInput}
@@ -581,51 +603,51 @@ export default function VendorDetail() {
                                 </Text>
                             </View>
                         </View>
-                        
+
                         {orderRequests.length > 0 ? (
                             <View style={styles.orderList}>
                                 {orderRequests
                                     .filter(order => order.status !== 'approved' || 'rejected')
                                     .map((order) => (
-                                    <View key={order.id} style={styles.orderItem}>
-                                        <View style={styles.orderInfo}>
-                                            <Text style={styles.orderProductName}>{order.productName}</Text>
-                                            <Text style={styles.orderQuantity}>Số lượng: {order.quantity}</Text>
-                                            <Text style={styles.orderDate}>
-                                                Ngày yêu cầu: {order.requestDate.toLocaleDateString('vi-VN')}
-                                            </Text>
-                                            <View style={[
-                                                styles.orderStatusBadge,
-                                                order.status === 'pending' ? styles.pendingBadge :
-                                                order.status === 'approved' ? styles.approvedBadge :
-                                                styles.rejectedBadge
-                                            ]}>
-                                                <Text style={styles.orderStatusText}>
-                                                    {order.status === 'pending' ? 'Đang chờ' :
-                                                    order.status === 'approved' ? 'Đã duyệt' :
-                                                    'Từ chối'}
+                                        <View key={order.id} style={styles.orderItem}>
+                                            <View style={styles.orderInfo}>
+                                                <Text style={styles.orderProductName}>{order.productName}</Text>
+                                                <Text style={styles.orderQuantity}>Số lượng: {order.quantity}</Text>
+                                                <Text style={styles.orderDate}>
+                                                    Ngày yêu cầu: {order.requestDate.toLocaleDateString('vi-VN')}
                                                 </Text>
+                                                <View style={[
+                                                    styles.orderStatusBadge,
+                                                    order.status === 'pending' ? styles.pendingBadge :
+                                                        order.status === 'approved' ? styles.approvedBadge :
+                                                            styles.rejectedBadge
+                                                ]}>
+                                                    <Text style={styles.orderStatusText}>
+                                                        {order.status === 'pending' ? 'Đang chờ' :
+                                                            order.status === 'approved' ? 'Đã duyệt' :
+                                                                'Từ chối'}
+                                                    </Text>
+                                                </View>
                                             </View>
+
+                                            {order.status === 'pending' && (
+                                                <View style={styles.orderActions}>
+                                                    <TouchableOpacity
+                                                        style={[styles.orderButton, styles.approveButton]}
+                                                        onPress={() => handleUpdateOrderStatus(order.id, 'approved')}
+                                                    >
+                                                        <Text style={styles.orderButtonText}>Duyệt</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.orderButton, styles.rejectButton]}
+                                                        onPress={() => handleUpdateOrderStatus(order.id, 'rejected')}
+                                                    >
+                                                        <Text style={styles.orderButtonText}>Từ chối</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            )}
                                         </View>
-                                        
-                                        {order.status === 'pending' && (
-                                            <View style={styles.orderActions}>
-                                                <TouchableOpacity 
-                                                    style={[styles.orderButton, styles.approveButton]}
-                                                    onPress={() => handleUpdateOrderStatus(order.id, 'approved')}
-                                                >
-                                                    <Text style={styles.orderButtonText}>Duyệt</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity 
-                                                    style={[styles.orderButton, styles.rejectButton]}
-                                                    onPress={() => handleUpdateOrderStatus(order.id, 'rejected')}
-                                                >
-                                                    <Text style={styles.orderButtonText}>Từ chối</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                    </View>
-                                ))}
+                                    ))}
                             </View>
                         ) : (
                             <Text style={styles.emptyOrderText}>Chưa có yêu cầu nhập hàng nào</Text>
@@ -746,14 +768,14 @@ export default function VendorDetail() {
                                 <Text style={styles.closeButtonText}>×</Text>
                             </TouchableOpacity>
                         </View>
-                        
+
                         <TextInput
                             style={styles.searchInput}
                             placeholder="Tìm kiếm người dùng..."
                             value={userSearchQuery}
                             onChangeText={setUserSearchQuery}
                         />
-                        
+
                         <ScrollView style={styles.usersList}>
                             {filteredUsers.length > 0 ? (
                                 filteredUsers.map(user => (
@@ -786,7 +808,7 @@ export default function VendorDetail() {
                                 </Text>
                             )}
                         </ScrollView>
-                        
+
                         <View style={styles.createUserNote}>
                             <Text style={styles.createUserText}>
                                 Nếu không tìm thấy người dùng phù hợp, bạn có thể
@@ -826,6 +848,28 @@ export default function VendorDetail() {
                     </View>
                 </View>
             </Modal>
+
+            <Modal
+                visible={showStockWarningModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowStockWarningModal(false)}
+            >
+                <View style={styles.modalContainer}>
+                    {/* Bạn có thể tái sử dụng style của successModal hoặc tạo style riêng */}
+                    <View style={styles.successModalContent}>
+                        <Text style={styles.successModalTitle}>Cảnh báo</Text>
+                        <Text style={styles.successModalMessage}>{stockWarningMessage}</Text>
+                        <TouchableOpacity
+                            style={styles.successModalButton}
+                            onPress={() => setShowStockWarningModal(false)} // Đóng modal khi nhấn nút
+                        >
+                            <Text style={styles.successModalButtonText}>Đã hiểu</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+            
         </ScrollView>
     );
 }
